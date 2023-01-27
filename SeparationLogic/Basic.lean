@@ -64,37 +64,36 @@ by
 
 def Heap.disjoint (m₁ m₂: Heap) : Prop := m₁.domain ∩ m₂.domain = ∅
 
-def Finset.not_in_union {α:Type u} {β:Sort v} [DecidableEq α] : ∀
-  (m₁ m₂:Finset α) (x:α), x ∈ m₁ ∪ m₂ → x ∉ m₁ → x ∉ m₂ → β :=
-by
-  intro m1 m2 x h1 h2 h3
-  apply False.elim
-  simp at h1
-  cases h1 with
-  | inl h =>
-    exact h2 h
-  | inr h =>
-    exact h3 h
+infixl:62 " /// " => Heap.disjoint
 
-def Heap.join (m₁ m₂ : Heap) : Heap := ⟨
+instance : Union Heap := ⟨fun m₁ m₂ => ⟨
   m₁.domain ∪ m₂.domain,
   fun x => dite (x.1 ∈ m₁.domain) (fun h => m₁.val ⟨x.val, h⟩)
-  (fun h1 => dite (x.1 ∈ m₂.domain) (fun h => m₂.val ⟨x.val, h⟩) (fun h2 =>
-    @Finset.not_in_union Nat _ _ m₁.domain m₂.domain x.val x.property h1 h2
+  (fun h1 => dite (x.1 ∈ m₂.domain) (fun h => m₂.val ⟨x.val, h⟩) (by
+    intro h2
+    apply False.elim
+    have := x.property
+    simp at this
+    apply Or.elim this
+    <;> intro h
+    . exact h1 h
+    . exact h2 h
   ))
-⟩
+⟩⟩
 
-@[simp] theorem Heap.eval_join_thm : ∀ m₁ m₂ : Heap, ∀ i,
-  eval (join m₁ m₂) i =
-    match eval m₁ i with
+@[simp] instance : Membership Nat Heap := ⟨fun x m => x ∈ m.domain⟩
+
+@[simp] def Heap.join := @Union.union Heap _
+
+@[simp] theorem Heap.eval_join_thm : ∀ m₁ m₂ x,
+  eval (m₁ ∪ m₂) x = match eval m₁ x with
+    | none => eval m₂ x
     | some x => some x
-    | none => eval m₂ i
 := by
-  intro ⟨d1, f1⟩ ⟨d2, f2⟩
-  intro i
-  apply @Classical.byCases (i ∈ d1)
-  <;> apply @Classical.byCases (i ∈ d2)
-  <;> intro h1 h2 <;> simp [eval, join, h1, h2]
+  intro m₁ m₂ x
+  apply @Classical.byCases (x ∈ m₁.domain) <;>
+  apply @Classical.byCases (x ∈ m₂.domain) <;>
+  intro h1 h2 <;> simp [eval, h1, h2, Union.union]
 
 theorem Heap.join_is_Associative : Associative Heap.join := by
   intro m1 m2 m3
@@ -105,47 +104,18 @@ theorem Heap.join_is_Associative : Associative Heap.join := by
   cases eval m2 x <;>
   simp
 
-#check Finset.ext_iff
+instance : Associative Heap.join := Heap.join_is_Associative
 
-theorem Heap.disjoint_is_symmetric : Symmetric disjoint := by
-  intro m1 m2
-  simp [disjoint]
-  have : m1.domain ∩ m2.domain = m2.domain ∩ m1.domain := by
-    apply Finset.ext_iff.2; simp
-    intro x; constructor
-    <;> intro h
-    <;> exact And.intro h.2 h.1
-
-  rw [this]
-  intros
-  trivial
-
-@[simp] theorem Heap.join_domain :
-  ∀ m₁ m₂, (join m₁ m₂).domain = m₁.domain ∪ m₂.domain :=
+@[symm] theorem Heap.disjoin_is_symmetric : ∀ m₁ m₂, m₁ /// m₂ → m₂ /// m₁ :=
 by
-  intro m1 m2
-  simp [join]
-
-theorem Heap.disjoint_of_joint :
-  ∀ m₁ m₂ m₃, disjoint m₁ m₃ ∧ disjoint m₂ m₃ → disjoint (join m₁ m₂) m₃ :=
-by
-  intro ⟨d1, f1⟩ ⟨d2, f2⟩ ⟨d3, f3⟩
-  simp [disjoint]
-  intro h1 h2
+  simp [Symmetric, disjoint]
+  intro m₁ m₂ h
+  have h := Finset.ext_iff.1 h
   apply Finset.ext_iff.2
-  have h1 := Finset.ext_iff.1 h1
-  have h2 := Finset.ext_iff.1 h2
-  intro x
-  constructor <;> intro h
-  . apply False.elim
-    simp at h h1 h2
-    cases h.1
-    apply h1 x
-    assumption
-    exact h.2
-    apply h2 x
-    assumption
-    exact h.2
-  . apply False.elim
-    cases h
+  simp at *
+  intro x h1 h2
+  apply h x h2 h1
 
+instance : Symmetric Heap.disjoint := Heap.disjoin_is_symmetric
+
+def Heap.Prop := { p:Heap → Prop // ∀ m₁ m₂, m₁ /// m₂ → p m₁ → p (join m₁ m₂) }
