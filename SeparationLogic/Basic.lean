@@ -132,7 +132,7 @@ theorem Heap.join_is_Associative : ∀ m₁ m₂ m₃:Heap, m₁ ∪ (m₂ ∪ m
   intro m1 m2 m3
   apply Heap.eval_eq_thm
   intro x
-  simp
+  simp only [eval_join_thm]
   cases eval m1 x <;>
   cases eval m2 x <;>
   simp only
@@ -167,7 +167,7 @@ by
   simp only [eval_join_thm]
   apply @Classical.byCases (x ∈ m₁.domain) <;>
   apply @Classical.byCases (x ∈ m₂.domain) <;>
-  intro h2 h3 <;> simp [eval, h2, h3]
+  intro h2 h3 <;> simp only [eval, h2, h3, dite_true, dite_false]
   apply False.elim
   simp only [disjoint_thm] at h1
   have := Finset.ext_iff.1 h1 x
@@ -217,7 +217,7 @@ by
   ∀ m₁ m₂ : Heap, (m₁ ∪ m₂).domain = m₁.domain ∪ m₂.domain :=
 by
   intro m₁ m₂
-  simp [Union.union]
+  simp only [Union.union]
 
 @[simp] theorem Heap.disjoint_joint_comp1 :
   ∀ m₁ m₂ m₃, m₁ /// m₂ ∪ m₃ ↔ (m₁ /// m₂ ∧ m₁ /// m₃) :=
@@ -252,7 +252,7 @@ by
   ∀ m₁ m₂ m₃, m₁ ∪ m₂ /// m₃ ↔ (m₁ /// m₃ ∧ m₂ /// m₃) :=
 by
   intro m₁ m₂ m₃
-  simp [disjoint_symm]
+  simp only [disjoint_symm, disjoint_joint_comp1]
 
 
 instance : Symmetric Heap.disjoint := Heap.disjoint_is_symmetric
@@ -278,7 +278,7 @@ by
   intro m₁ m₂ _ h2
   generalize h3 : eval m₁ ref = x₁
   generalize h4 : eval m₂ ref = x₂
-  cases x₁ <;> cases x₂ <;> simp
+  cases x₁ <;> cases x₂ <;> simp only [Option.some.injEq]
   case none.none =>
     rw [h3] at h2
     cases h2
@@ -481,7 +481,7 @@ by
   simp only [star_prop, star_prop_definition, magic_prop, magic_prop_definitoin, forall_exists_index, and_imp]
   intro m2 m3 h1 h2 h3 h4
   have := h4 m2
-  simp at *
+  simp only at *
   rw [join_symm, disjoint_symm, <-h1] at this
   apply this
   <;> assumption
