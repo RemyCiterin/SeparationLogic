@@ -32,6 +32,7 @@ structure Heap.Cell where
   val: type
 
 
+
 structure Heap where
   domain : Finset Nat
   val : {x // x ∈ domain} → Heap.Cell
@@ -41,6 +42,11 @@ instance : Inhabited Heap where
     apply False.elim
     cases x.property
   ⟩
+
+instance : Singleton (Nat × Heap.Cell) Heap where
+  singleton pair :=
+    let (ref, cell) := pair
+    ⟨{ref}, fun _ => cell⟩
 
 instance : EmptyCollection Heap where
   emptyCollection := default
@@ -143,7 +149,7 @@ instance : Associative Heap.join := by
   apply Eq.symm
   apply Heap.join_is_Associative
 
-@[symm] theorem Heap.disjoint_is_symmetric : ∀ m₁ m₂, m₁ /// m₂ → m₂ /// m₁ :=
+theorem Heap.disjoint_is_symmetric : ∀ m₁ m₂, m₁ /// m₂ → m₂ /// m₁ :=
 by
   simp only [Symmetric, disjoint_thm]
   intro m₁ m₂ h
@@ -219,7 +225,7 @@ by
   intro m₁ m₂
   simp only [Union.union]
 
-@[simp] theorem Heap.disjoint_joint_comp1 :
+@[simp] theorem Heap.disjoint_join_comp1 :
   ∀ m₁ m₂ m₃, m₁ /// m₂ ∪ m₃ ↔ (m₁ /// m₂ ∧ m₁ /// m₃) :=
 by
   intro m₁ m₂ m₃
@@ -248,11 +254,11 @@ by
     . apply h1 x <;> assumption
     . apply h2 x <;> assumption
 
-@[simp] theorem Heap.disjoint_joint_comp2 :
+@[simp] theorem Heap.disjoint_join_comp2 :
   ∀ m₁ m₂ m₃, m₁ ∪ m₂ /// m₃ ↔ (m₁ /// m₃ ∧ m₂ /// m₃) :=
 by
   intro m₁ m₂ m₃
-  simp only [disjoint_symm, disjoint_joint_comp1]
+  simp only [disjoint_symm, disjoint_join_comp1]
 
 
 instance : Symmetric Heap.disjoint := Heap.disjoint_is_symmetric
@@ -268,37 +274,6 @@ def Heap.pure_prop_stability (p:Prop) : context_stability (pure_prop_definition 
 
 @[simp] def Heap.pure_prop (p:Prop) : Heap.prop :=
   ⟨pure_prop_definition p, pure_prop_stability p⟩
-
-@[simp] def Heap.assign_prop_definition (ref:Nat) (cell:Cell) : Heap → Prop :=
-  fun m => eval m ref = some cell
-
-def Heap.assign_prop_stability (ref:Nat) (cell:Cell) : context_stability (assign_prop_definition ref cell) :=
-by
-  simp only [context_stability, assign_prop_definition, eval_join_thm]
-  intro m₁ m₂ _ h2
-  generalize h3 : eval m₁ ref = x₁
-  generalize h4 : eval m₂ ref = x₂
-  cases x₁ <;> cases x₂ <;> simp only [Option.some.injEq]
-  case none.none =>
-    rw [h3] at h2
-    cases h2
-  case none.some x =>
-    rw [h3] at h2
-    cases h2
-  case some.none x =>
-    rw [h3] at h2
-    cases h2
-    rfl
-  case some.some x y =>
-    rw [h3] at h2
-    cases h2
-    rfl
-
-@[simp] def Heap.assign_prop (ref:Nat) (cell:Cell) : Heap.prop :=
-  ⟨
-    assign_prop_definition ref cell,
-    assign_prop_stability ref cell
-  ⟩
 
 @[simp] def Heap.star_prop_definition (P Q:Heap.prop) : Heap → Prop :=
   fun m => ∃ m₁ m₂,
@@ -321,15 +296,15 @@ by
     simp only [Associative] at this
     rw [this]
   . constructor
-    . simp only [disjoint_joint_comp1]
-      simp only [h2.1, disjoint_joint_comp2] at h1
+    . simp only [disjoint_join_comp1]
+      simp only [h2.1, disjoint_join_comp2] at h1
       constructor
       . apply h2.2.1
       . exact h1.1
     . constructor
       . exact h2.2.2.1
       . apply Q.property
-        . simp only [h2.1, disjoint_joint_comp2] at h1
+        . simp only [h2.1, disjoint_join_comp2] at h1
           exact h1.2
         . exact h2.2.2.2
 
@@ -346,12 +321,12 @@ by
   have h2 := h2 (m₂ ∪ m')
   rw [join_is_Associative] at h2
   apply h2
-  simp only [disjoint_joint_comp1, disjoint_joint_comp2] at *
+  simp only [disjoint_join_comp1, disjoint_join_comp2] at *
   constructor
   . apply h1
   . apply h3.1
   . rw [join_symm] <;>
-    simp only [disjoint_joint_comp2] at h3
+    simp only [disjoint_join_comp2] at h3
     apply P.property
     rw [disjoint_symm]
     exact h3.2
@@ -380,7 +355,7 @@ by
 @[simp] def Heap.forall_prop_definition {α:Sort u} (prop:α → Heap.prop) : Heap → Prop :=
   λ m:Heap => ∀ x:α, (prop x).val m
 
-def Heap.forall_prop_stability {α:Sort u} (prop:α → Heap.prop) : context_stability (forall_prop_definition prop) :=
+theorem Heap.forall_prop_stability {α:Sort u} (prop:α → Heap.prop) : context_stability (forall_prop_definition prop) :=
 by
   simp only [context_stability]
   intro m₁ m₂ h1 h2 x
@@ -394,7 +369,7 @@ by
 @[simp] def Heap.and_prop_definition (P Q:Heap.prop) : Heap → Prop :=
   λ m:Heap => P.val m ∧ Q.val m
 
-def Heap.and_prop_stability (P Q:Heap.prop) : context_stability (and_prop_definition P Q) :=
+theorem Heap.and_prop_stability (P Q:Heap.prop) : context_stability (and_prop_definition P Q) :=
 by
   simp only [context_stability, and_prop_definition, and_imp]
   intro m₁ m₂ h1 h2 h3
@@ -432,9 +407,6 @@ macro_rules
 | `(⌜ $p:term ⌝) => `( Heap.pure_prop $p )
 | `( ⌜⌝ ) => `( Heap.pure_prop True )
 
-syntax term " ↦ " term : term -- type as `mapsto`
-macro_rules
-| `( $x:term ↦ $y:term ) => `( Heap.assign_prop $x $y )
 
 infixr:67 " ⋆ " => Heap.star_prop -- type as `star`
 
@@ -445,6 +417,24 @@ infixr:35 " ∧ᴴ " => Heap.and_prop
 infixr:30 " ∨ᴴ " => Heap.or_prop
 
 #print Exists
+
+@[simp] def Heap.as_prop_definition (p:Heap→Prop) : Heap → Prop := fun m => ∀ m', m /// m' → p (m ∪ m')
+
+theorem Heap.as_prop_stability (p:Heap→Prop) : context_stability (as_prop_definition p) :=
+by
+  simp only [context_stability]
+  intro m₁ m₂ h1 h2 m' h3
+  simp only [disjoint_join_comp2] at h3
+  rw [<-join_is_Associative]
+  apply h2
+  simp only [disjoint_join_comp1]
+  constructor
+  . apply h1
+  . apply h3.1
+
+@[simp] def Heap.as_prop (p:Heap→Prop) : Heap.prop :=
+  ⟨as_prop_definition p, as_prop_stability p⟩
+
 
 
 open Lean in
@@ -457,22 +447,40 @@ macro "∀ᴴ " xs:explicitBinders ", " b:term : term => expandExplicitBinders `
 
 #check (∃ᴴ x, ⌜ x ⌝) ⋆ ∀ᴴ y, ⌜ y ⌝
 
+abbrev Heap.Pointer := Nat
 
-inductive Tree where
-| Leaf : Tree
-| Node : Tree → Nat → Tree → Tree
+@[simp] def Heap.assign_prop_definition (ref:Nat) (cell:Cell) : Heap → Prop :=
+  fun m => eval m ref = some cell
 
-structure Tree_record where
-  l : Option Nat -- mutable sub-tree
-  x : Nat -- item
-  r : Option Nat -- mutable sub-tree
+def Heap.assign_prop_stability (ref:Nat) (cell:Cell) : context_stability (assign_prop_definition ref cell) :=
+by
+  simp only [context_stability, assign_prop_definition, eval_join_thm]
+  intro m₁ m₂ _ h2
+  generalize h3 : eval m₁ ref = x₁
+  generalize h4 : eval m₂ ref = x₂
+  cases x₁ <;> cases x₂ <;> simp only [Option.some.injEq]
+  case none.none =>
+    rw [h3] at h2
+    cases h2
+  case none.some x =>
+    rw [h3] at h2
+    cases h2
+  case some.none x =>
+    rw [h3] at h2
+    cases h2
+    rfl
+  case some.some x y =>
+    rw [h3] at h2
+    cases h2
+    rfl
 
-def is_tree (x:Option Nat) : Tree → Heap.prop
-| .Leaf => ⌜x=none⌝
-| .Node l y r => ∃ᴴ (x':Nat) (xl xr:Option Nat),
-  ⌜x=some x'⌝ ⋆ is_tree xl l ⋆ is_tree xr r ⋆ x' ↦ ⟨Tree_record, ⟨xl, y, xr⟩⟩
+@[simp] def Heap.assign_prop (ref:Nat) (cell:Cell) : Heap.prop :=
+  ⟨
+    assign_prop_definition ref cell,
+    assign_prop_stability ref cell
+  ⟩
 
-#print is_tree
+infixl:70 " ↦ " => Heap.assign_prop -- type as `mapsto`
 
 
 @[simp] theorem Heap.star_magic_reduction (P Q:Heap.prop) : ∀ m, (P ⋆ (P -⋆ Q)).val m → Q.val m :=
@@ -488,8 +496,12 @@ by
   rw [disjoint_symm]
   assumption
 
+def Heap.models (P Q:Heap.prop) : Prop :=
+  ∀ m, P.1 m → Q.1 m
 
-@[symm] theorem Heap.star_is_symmetric (P Q:Heap.prop) : ∀ m, (P ⋆ Q).val m → (Q ⋆ P).val m :=
+infix:25  " ⊧ " => Heap.models -- type as vdash
+
+theorem Heap.star_is_symmetric (P Q:Heap.prop) : P ⋆ Q ⊧ Q ⋆ P :=
 by
   intro m
   simp only [star_prop, star_prop_definition]
@@ -509,11 +521,4 @@ by
       . apply h1.2.2.2
       . apply h1.2.2.1
   apply h1.2.1
-
-
-theorem Heap.star_symm (P Q:Heap.prop) : ∀ m, (P ⋆ Q).val m ↔ (Q ⋆ P).val m :=
-by
-  intro
-  constructor
-  <;> apply Heap.star_is_symmetric
 
